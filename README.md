@@ -35,12 +35,3 @@ The game copies a character's mod data onto its corpse, and a corpse's mod data 
 
 Why corpses go missing with god mode: when health reaches 0 the game shows the death screen and deletes the character (`IsoPlayer.OnDeath`), but the corpse is only created later by `PlayerOnGroundState`, which calls `die()` only while `isDead()` is still true. `isDead()` just reads the current health, so god mode switched on during the death animation heals the body and the corpse is never made. The record keeper watches each death until its corpse exists: if the body gets healed it turns god mode off and zeroes the health again, and if the corpse still does not appear it calls `die()` itself.
 
-## Tests
-
-The tests run the mod's Lua in Kahlua, the Lua VM from the game's own `projectzomboid.jar`, against mocks of the game API.
-
-```bash
-JAVAC="/c/Program Files/Java/jdk-21.0.11/bin/javac" bash tests/run_tests.sh
-```
-
-Needs a JDK 17+ `javac` (only to compile the small runner) and the game installed; set `PZ_DIR` if it is not in `D:/Games/Steam/steamapps/common/ProjectZomboid`.
