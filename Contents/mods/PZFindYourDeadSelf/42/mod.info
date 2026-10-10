@@ -14,5 +14,6 @@ description=<H2>Sandbox options <LINE>
 description=<TEXT>* Death Marker Visibility: Only me, Me + faction or Everyone (multiplayer only). <LINE>
 description=* Always Leave a Body: on by default. <LINE>
 description= <LINE>
-description=Made for SP and MP. MP was not tested yet. <LINE>
+description=Works for SP. <LINE>
+description=Should work on MP, but it was not tested. <LINE>
 description=Can be added to existing saves. Only deaths after installing get a skull.
