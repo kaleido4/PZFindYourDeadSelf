@@ -17,6 +17,8 @@
         RemovePlayerCorpsesOnCorpseRemoval is on (off by default, also in SP);
       * the corpse of a killed zombie is removed once it has been dead for
         HoursForCorpseRemoval hours.
+    With the sandbox option "Your Corpse Never Rots" the record keeper keeps our
+    corpses fresh, so the game never removes them and the countdown never ends.
 --]]
 
 FYDS = FYDS or {}
@@ -80,11 +82,29 @@ function FYDS.needsTracking(rec)
     return rec.state == FYDS.STATE_ZOMBIE or (rec.state == FYDS.STATE_CORPSE and rec.willReanimate)
 end
 
-function FYDS.isExpired(rec, nowHours, hoursForRemoval, removePlayerCorpses)
-    if rec.state ~= FYDS.STATE_CORPSE or not rec.corpseSince then return false end
+function FYDS.isExpired(rec, nowHours, hoursForRemoval, removePlayerCorpses, keepCorpses)
+    if rec.state ~= FYDS.STATE_CORPSE or not rec.corpseSince or keepCorpses then return false end
     if not hoursForRemoval or hoursForRemoval <= 0 then return false end
     if not rec.wasZombie and not removePlayerCorpses then return false end
     return nowHours - rec.corpseSince >= hoursForRemoval
+end
+
+-- Erasing a skull (map Remove tool, needs an eraser) only hides it for the
+-- player who erased it; the record, its countdown and the corpse are untouched.
+-- Who erased it is keyed by username in multiplayer. In singleplayer every
+-- character is the same person, so one fixed key is used.
+function FYDS.viewerKey(player)
+    if isClient() or isServer() then return player:getUsername() end
+    return "sp"
+end
+
+function FYDS.isErasedFor(rec, key)
+    return rec.erasedBy ~= nil and rec.erasedBy[key] == true
+end
+
+function FYDS.markErased(rec, key)
+    rec.erasedBy = rec.erasedBy or {}
+    rec.erasedBy[key] = true
 end
 
 -- sameFaction(ownerName, viewerName) is passed in so this stays testable.

@@ -5,7 +5,8 @@
         its corpse's mod data;
       * setGodMod() is refused while the character is dead;
       * setHealth(0) is refused while god mode is on;
-      * god mode heals the character back to full every update.
+      * god mode heals the character back to full every update;
+      * a corpse lies on a square and has a death time.
 --]]
 
 MOD = ROOT .. "/Contents/mods/PZFindYourDeadSelf/common/media/lua/"
@@ -71,6 +72,7 @@ function setupGame(opts)
         server = opts.server or false,
         store = opts.store or {},  -- global mod data, survives "reloads"
         zombieList = {},
+        squares = {},              -- "x,y,z" -> loaded square
         online = {},
         factions = {},
         serverOptions = {},
@@ -79,6 +81,7 @@ function setupGame(opts)
     }
 
     FYDS = nil
+    GAME = game
     Events = setmetatable({}, { __index = function(t, name)
         local ev = { handlers = {} }
         ev.Add = function(fn) ev.handlers[#ev.handlers + 1] = fn end
@@ -95,13 +98,18 @@ function setupGame(opts)
     getServerOptions = function()
         return { getBoolean = function(_, name) return game.serverOptions[name] == true end }
     end
-    SandboxVars = { HoursForCorpseRemoval = opts.hours or 216, PZFindYourDeadSelf = { Visibility = 1, AlwaysLeaveBody = true } }
+    SandboxVars = { HoursForCorpseRemoval = opts.hours or 216, PZFindYourDeadSelf = { Visibility = 1, KeepCorpse = false } }
     ModData = { getOrCreate = function(key)
         game.store[key] = game.store[key] or {}
         return game.store[key]
     end }
     instanceof = function(o, class) return type(o) == "table" and o.classes ~= nil and o.classes[class] == true end
-    getCell = function() return { getZombieList = function() return javaList(game.zombieList) end } end
+    getCell = function()
+        return {
+            getZombieList = function() return javaList(game.zombieList) end,
+            getGridSquare = function(_, x, y, z) return game.squares[x .. "," .. y .. "," .. z] end,
+        }
+    end
     getOnlinePlayers = function() return javaList(game.online) end
     sendServerCommand = function(player, module, command, args)
         game.sent[#game.sent + 1] = { player = player, module = module, command = command, args = args }
@@ -199,7 +207,7 @@ function newPlayer(o)
     function p:die()
         self.dieCalls = self.dieCalls + 1
         if self.deathDone then return end
-        self.corpse = { modData = copy(self.modData), x = self.x, y = self.y, z = self.z }
+        self.corpse = dropBody(GAME, copy(self.modData), self.x, self.y, self.z)
         self.deathDone = true
     end
     -- One game update: god mode restores full health.
@@ -239,7 +247,60 @@ end
 function reanimate(game, corpse, x, y)
     local z = newZombie(copy(corpse.modData), x or corpse.x, y or corpse.y)
     game.zombieList[#game.zombieList + 1] = z
+    if corpse.square then
+        local bodies = corpse.square.bodies
+        for i = #bodies, 1, -1 do
+            if bodies[i] == corpse then table.remove(bodies, i) end
+        end
+    end
     return z
+end
+
+---------------------------------------------------------------------------
+-- Squares and corpses
+---------------------------------------------------------------------------
+
+function newSquare(game, x, y, z)
+    local sq = { x = x, y = y, z = z, bodies = {}, bodyQueries = 0 }
+    function sq:getX() return self.x end
+    function sq:getY() return self.y end
+    function sq:getZ() return self.z end
+    function sq:getDeadBodys()
+        self.bodyQueries = self.bodyQueries + 1
+        return javaList(self.bodies)
+    end
+    game.squares[x .. "," .. y .. "," .. z] = sq
+    return sq
+end
+
+function squareAt(game, x, y, z)
+    x, y, z = math.floor(x), math.floor(y), math.floor(z or 0)
+    return game.squares[x .. "," .. y .. "," .. z] or newSquare(game, x, y, z)
+end
+
+-- A corpse appears on the square under (x, y, z), dying now.
+function dropBody(game, modData, x, y, z)
+    local body = { modData = modData, x = x, y = y, z = z or 0, deathTime = game.now }
+    function body:hasModData() return self.modData ~= nil end
+    function body:getModData()
+        self.modData = self.modData or {}
+        return self.modData
+    end
+    function body:getDeathTime() return self.deathTime end
+    function body:setDeathTime(t) self.deathTime = t end
+    body.square = squareAt(game, x, y, z)
+    body.square.bodies[#body.square.bodies + 1] = body
+    return body
+end
+
+-- The area is unloaded: its squares are gone from the cell.
+function unloadSquare(game, square)
+    game.squares[square.x .. "," .. square.y .. "," .. square.z] = nil
+end
+
+function loadSquare(game, square)
+    game.squares[square.x .. "," .. square.y .. "," .. square.z] = square
+    fire("LoadGridsquare", square)
 end
 
 function removeFromList(game, zombie)

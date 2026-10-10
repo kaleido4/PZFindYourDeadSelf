@@ -6,8 +6,8 @@ option PZFindYourDeadSelf.Visibility
     page = PZFindYourDeadSelf, translation = FYDS_Visibility,
 }
 
-option PZFindYourDeadSelf.AlwaysLeaveBody
+option PZFindYourDeadSelf.KeepCorpse
 {
-    type = boolean, default = true,
-    page = PZFindYourDeadSelf, translation = FYDS_AlwaysLeaveBody,
+    type = boolean, default = false,
+    page = PZFindYourDeadSelf, translation = FYDS_KeepCorpse,
 }

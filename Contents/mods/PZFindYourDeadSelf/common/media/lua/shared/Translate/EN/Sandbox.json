@@ -5,6 +5,6 @@
     "Sandbox_FYDS_Visibility_option1": "Only me",
     "Sandbox_FYDS_Visibility_option2": "Me + faction",
     "Sandbox_FYDS_Visibility_option3": "Everyone",
-    "Sandbox_FYDS_AlwaysLeaveBody": "Always Leave a Body",
-    "Sandbox_FYDS_AlwaysLeaveBody_tooltip": "Makes sure every player death leaves a corpse, which can still reanimate as usual.\nWithout it, turning on god mode while already dying shows the death screen but leaves no corpse and no zombie behind."
+    "Sandbox_FYDS_KeepCorpse": "Your Corpse Never Rots",
+    "Sandbox_FYDS_KeepCorpse_tooltip": "Your corpse, and the corpse of your zombie once it is killed, never rots and is never removed by Hours for Corpse Removal, so your gear stays where you fell. Its skull stays on the map.\nOther corpses are not affected."
 }

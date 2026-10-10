@@ -94,17 +94,107 @@ test("paused time does not count toward the stuck timeout", function()
     truthy(p.corpse, "corpse after unpausing")
 end)
 
-test("AlwaysLeaveBody off: nothing is forced", function()
+test("the god mode fix is always on, whatever the sandbox options", function()
     local game = setupGame()
-    SandboxVars.PZFindYourDeadSelf.AlwaysLeaveBody = false
+    SandboxVars.PZFindYourDeadSelf = {}
     loadServer(game)
     local p = newPlayer()
     p:kill(game)
     p.godMod = true
     p:update()
-    tickFor(game, 30000, 500, { p })
-    eq(p.corpse, nil, "no corpse")
-    eq(p.godMod, true, "god mode untouched")
+    tickFor(game, 2500, 100, { p })
+    truthy(p.corpse, "corpse created")
+end)
+
+test("Never Rots off: corpses age normally", function()
+    local game = setupGame()
+    loadServer(game)
+    local p = newPlayer()
+    p:kill(game)
+    p:die()
+    local born = p.corpse.deathTime
+    game.now = game.now + 100
+    tickFor(game, 11000)
+    eq(p.corpse.deathTime, born, "death time untouched")
+end)
+
+test("Never Rots on: a loaded corpse stays fresh and its skull never expires", function()
+    local game = setupGame({ hours = 24 })
+    SandboxVars.PZFindYourDeadSelf.KeepCorpse = true
+    game.serverOptions.RemovePlayerCorpsesOnCorpseRemoval = true
+    loadServer(game)
+    local p = newPlayer()
+    p:kill(game)
+    p:die()
+    game.now = game.now + 100
+    tickFor(game, 11000)
+    eq(p.corpse.deathTime, game.now, "freshened")
+    eq(count(records()), 1, "skull kept")
+end)
+
+test("Never Rots on: the corpse of our killed zombie stays fresh where it fell", function()
+    local game = setupGame({ hours = 24 })
+    SandboxVars.PZFindYourDeadSelf.KeepCorpse = true
+    loadServer(game)
+    local p = newPlayer({ infected = true })
+    p:kill(game)
+    p:die()
+    local z = reanimate(game, p.corpse)
+    tickFor(game, 6000)
+    z.x, z.y, z.dead = 33.5, 44.5, true
+    fire("OnZombieDead", z)
+    local body = dropBody(game, copy(z.modData), z.x, z.y, 0)
+    game.now = game.now + 500
+    tickFor(game, 11000)
+    eq(body.deathTime, game.now, "freshened")
+    eq(count(records()), 1, "skull kept")
+end)
+
+test("Never Rots on: a corpse is refreshed the moment its area loads", function()
+    local game = setupGame()
+    SandboxVars.PZFindYourDeadSelf.KeepCorpse = true
+    loadServer(game)
+    local p = newPlayer({ x = 10.5, y = 20.5 })
+    p:kill(game)
+    p:die()
+    tickFor(game, 11000)
+    local square = p.corpse.square
+    unloadSquare(game, square)
+    game.now = game.now + 1000
+    tickFor(game, 11000)
+    eq(p.corpse.deathTime < game.now, true, "not refreshed while unloaded")
+    loadSquare(game, square)
+    eq(p.corpse.deathTime, game.now, "refreshed on load")
+end)
+
+test("Never Rots on: other squares and other corpses are left alone", function()
+    local game = setupGame()
+    SandboxVars.PZFindYourDeadSelf.KeepCorpse = true
+    loadServer(game)
+    local p = newPlayer({ x = 10.5, y = 20.5 })
+    p:kill(game)
+    p:die()
+    local stranger = dropBody(game, nil, 10.5, 20.5, 0)
+    local far = newSquare(game, 500, 500, 0)
+    game.now = game.now + 100
+    loadSquare(game, far)
+    eq(far.bodyQueries, 0, "far square not searched")
+    tickFor(game, 11000)
+    eq(stranger.deathTime < game.now, true, "untagged corpse untouched")
+    eq(p.corpse.deathTime, game.now, "ours freshened")
+end)
+
+test("Never Rots switched on mid-game takes effect", function()
+    local game = setupGame()
+    loadServer(game)
+    local p = newPlayer()
+    p:kill(game)
+    p:die()
+    tickFor(game, 11000)
+    SandboxVars.PZFindYourDeadSelf.KeepCorpse = true
+    game.now = game.now + 100
+    tickFor(game, 11000)
+    eq(p.corpse.deathTime, game.now, "freshened")
 end)
 
 test("reanimation: found within the scan interval, countdown cleared, follows the zombie", function()
@@ -342,6 +432,44 @@ test("MP: zombie movement is sent, an idle server is quiet until the resync", fu
     tickFor(game, 1100)
     eq(#game.sent, 1, "movement sent")
     eq(lastSentTo(game, alice).args.records[1].x, z.x, "new position")
+end)
+
+test("SP erase hides the skull but keeps the record, its countdown and Never Rots", function()
+    local game = setupGame()
+    SandboxVars.PZFindYourDeadSelf.KeepCorpse = true
+    loadServer(game)
+    local old = newPlayer({ username = "Bob" })
+    old:kill(game)
+    old:die()
+    local rec = onlyRecord()
+    local newChar = newPlayer({ username = "Alice" }) -- SP username can change per character
+    FYDS.eraseRecord(newChar, rec.id)
+    truthy(FYDS.isErasedFor(rec, FYDS.viewerKey(newChar)), "erased")
+    eq(count(records()), 1, "record kept")
+    game.now = game.now + 100
+    tickFor(game, 11000)
+    eq(old.corpse.deathTime, game.now, "still kept fresh")
+end)
+
+test("MP erase: only for the player who erased it, and only what they can see", function()
+    local game, alice, carol, dave = mpGame(FYDS.VISIBILITY_FACTION)
+    local aliceRecId
+    for id, rec in pairs(records()) do
+        if rec.name == "OldAlice" then aliceRecId = id end
+    end
+    fire("OnClientCommand", FYDS.MOD_ID, "erase", carol, { id = aliceRecId })
+    tickFor(game, 200)
+    eq(sentNames(lastSentTo(game, carol)), "", "gone for carol")
+    eq(sentNames(lastSentTo(game, alice)), "OldAlice", "alice still sees hers")
+    -- dave is in another faction and cannot see Alice's skull, so cannot erase it.
+    local daveRecId
+    for id, rec in pairs(records()) do
+        if rec.name == "OldDave" then daveRecId = id end
+    end
+    fire("OnClientCommand", FYDS.MOD_ID, "erase", carol, { id = daveRecId })
+    eq(FYDS.isErasedFor(records()[daveRecId], "carol"), false, "unseen skull not erasable")
+    fire("OnClientCommand", FYDS.MOD_ID, "erase", alice, { id = "does-not-exist" })
+    fire("OnClientCommand", FYDS.MOD_ID, "erase", alice, nil)
 end)
 
 finish("server")

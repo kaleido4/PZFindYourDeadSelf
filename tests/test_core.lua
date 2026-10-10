@@ -30,6 +30,13 @@ test("hours <= 0 means never", function()
     eq(FYDS.isExpired(rec, 1000000, nil, true), false, "nil")
 end)
 
+test("Your Corpse Never Rots: corpse records never expire", function()
+    local rec = FYDS.newRecord("1", "bob", "Bob", 0, 0, 0, 0, false)
+    eq(FYDS.isExpired(rec, 1000000, H, true, true), false, "player corpse")
+    FYDS.markKilled(rec, 0, 0, 0, 0)
+    eq(FYDS.isExpired(rec, 1000000, H, true, true), false, "killed zombie corpse")
+end)
+
 test("reanimating clears the countdown completely", function()
     local rec = FYDS.newRecord("1", "bob", "Bob", 0, 0, 0, 100, true)
     FYDS.markReanimated(rec, 5, 6, 0)

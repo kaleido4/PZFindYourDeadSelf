@@ -5,15 +5,18 @@ Project Zomboid (Build 42) mod that shows where you died on the world map, so yo
 - A red skull with the character's name marks the spot.
 - If the body reanimates, the skull follows the zombie while it is in a loaded area, and keeps its last known position while it is not.
 - When the zombie is killed, the skull stays where it fell.
-- The skull disappears when the game would remove the corpse. This follows the game's own rules: `HoursForCorpseRemoval` (<= 0 means never), and player corpses only when the server option `RemovePlayerCorpsesOnCorpseRemoval` is on.
+- The skull disappears when the game would remove the corpse. This follows the game's own rules: `HoursForCorpseRemoval` (<= 0 means never), and player corpses only when the server option `RemovePlayerCorpsesOnCorpseRemoval` is on. With the sandbox option Your Corpse Never Rots, the corpse and its skull stay forever.
 - Every death leaves a corpse, even when god mode is turned on while already dying.
+- A skull can be erased with the map's Remove tool, which like any map marking needs an eraser. It only disappears from that player's map; the corpse and its countdown are not affected. Useful when the body was burned or buried, or for any marker that should not be there.
 
 ## Sandbox options
 
 | Option | Values | Default |
 |---|---|---|
 | Death Marker Visibility | Only me / Me + faction / Everyone (MP only) | Only me |
-| Always Leave a Body | on / off | on |
+| Your Corpse Never Rots | on / off | off |
+
+With Your Corpse Never Rots on, the record keeper keeps resetting the death time of the player's tagged corpses (and of their killed zombie's corpse), so they never rot and the game never removes them. Corpses in an area that is loading are refreshed from `LoadGridsquare`, which fires before the game registers them for removal.
 
 ## Layout
 
