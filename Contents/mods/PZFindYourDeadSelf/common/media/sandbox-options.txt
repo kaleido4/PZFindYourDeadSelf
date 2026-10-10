@@ -1,0 +1,13 @@
+VERSION = 1,
+
+option PZFindYourDeadSelf.Visibility
+{
+    type = enum, numValues = 3, default = 1,
+    page = PZFindYourDeadSelf, translation = FYDS_Visibility,
+}
+
+option PZFindYourDeadSelf.AlwaysLeaveBody
+{
+    type = boolean, default = true,
+    page = PZFindYourDeadSelf, translation = FYDS_AlwaysLeaveBody,
+}

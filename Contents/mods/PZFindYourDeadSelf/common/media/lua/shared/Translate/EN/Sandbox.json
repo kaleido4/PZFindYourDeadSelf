@@ -1,0 +1,10 @@
+{
+    "Sandbox_PZFindYourDeadSelf": "Find Your Dead Self",
+    "Sandbox_FYDS_Visibility": "Death Marker Visibility",
+    "Sandbox_FYDS_Visibility_tooltip": "Who sees a death skull on the world map. Has no effect in singleplayer.\nOnly me: only the player who died.\nMe + faction: the player who died and the members of their faction.\nEveryone: every player on the server.",
+    "Sandbox_FYDS_Visibility_option1": "Only me",
+    "Sandbox_FYDS_Visibility_option2": "Me + faction",
+    "Sandbox_FYDS_Visibility_option3": "Everyone",
+    "Sandbox_FYDS_AlwaysLeaveBody": "Always Leave a Body",
+    "Sandbox_FYDS_AlwaysLeaveBody_tooltip": "Makes sure every player death leaves a corpse, which can still reanimate as usual.\nWithout it, turning on god mode while already dying shows the death screen but leaves no corpse and no zombie behind."
+}

@@ -1,0 +1,83 @@
+dofile(ROOT .. "/tests/harness.lua")
+FYDS = nil
+dofile(MOD .. "shared/FindYourDeadSelf/FYDS_Core.lua")
+
+local H = 216
+
+test("new record is a corpse with a running countdown", function()
+    local rec = FYDS.newRecord("1", "bob", "Bob Smith", 1, 2, 0, 100, false)
+    eq(rec.state, FYDS.STATE_CORPSE, "state")
+    eq(rec.corpseSince, 100, "corpseSince")
+    eq(rec.wasZombie, false, "wasZombie")
+end)
+
+test("player corpse never expires while RemovePlayerCorpsesOnCorpseRemoval is off", function()
+    local rec = FYDS.newRecord("1", "bob", "Bob", 0, 0, 0, 0, false)
+    eq(FYDS.isExpired(rec, 1000000, H, false), false, "expired")
+end)
+
+test("player corpse expires after the corpse removal hours when the option is on", function()
+    local rec = FYDS.newRecord("1", "bob", "Bob", 0, 0, 0, 100, false)
+    eq(FYDS.isExpired(rec, 100 + H - 1, H, true), false, "before")
+    eq(FYDS.isExpired(rec, 100 + H, H, true), true, "at")
+end)
+
+test("hours <= 0 means never", function()
+    local rec = FYDS.newRecord("1", "bob", "Bob", 0, 0, 0, 0, false)
+    FYDS.markKilled(rec, 0, 0, 0, 0)
+    eq(FYDS.isExpired(rec, 1000000, -1, true), false, "-1")
+    eq(FYDS.isExpired(rec, 1000000, 0, true), false, "0")
+    eq(FYDS.isExpired(rec, 1000000, nil, true), false, "nil")
+end)
+
+test("reanimating clears the countdown completely", function()
+    local rec = FYDS.newRecord("1", "bob", "Bob", 0, 0, 0, 100, true)
+    FYDS.markReanimated(rec, 5, 6, 0)
+    eq(rec.state, FYDS.STATE_ZOMBIE, "state")
+    eq(rec.corpseSince, nil, "corpseSince")
+    eq(rec.x, 5, "x")
+    eq(FYDS.isExpired(rec, 1000000, H, true), false, "zombie never expires")
+end)
+
+test("killed zombie gets a fresh full countdown, even with player corpses kept", function()
+    local rec = FYDS.newRecord("1", "bob", "Bob", 0, 0, 0, 100, true)
+    FYDS.markReanimated(rec, 5, 6, 0)
+    FYDS.markKilled(rec, 7, 8, 0, 500)
+    eq(rec.state, FYDS.STATE_CORPSE, "state")
+    eq(rec.corpseSince, 500, "corpseSince")
+    eq(rec.wasZombie, true, "wasZombie")
+    eq(rec.x, 7, "x")
+    eq(FYDS.isExpired(rec, 500 + H - 0.01, H, false), false, "before")
+    eq(FYDS.isExpired(rec, 500 + H, H, false), true, "at")
+end)
+
+test("needsTracking: reanimating corpse and zombie yes, plain or killed corpse no", function()
+    local plain = FYDS.newRecord("1", "a", "A", 0, 0, 0, 0, false)
+    local infected = FYDS.newRecord("2", "a", "A", 0, 0, 0, 0, true)
+    eq(FYDS.needsTracking(plain), false, "plain")
+    eq(FYDS.needsTracking(infected), true, "infected")
+    FYDS.markReanimated(infected, 0, 0, 0)
+    eq(FYDS.needsTracking(infected), true, "zombie")
+    FYDS.markKilled(infected, 0, 0, 0, 1)
+    eq(FYDS.needsTracking(infected), false, "killed")
+end)
+
+test("visibility modes", function()
+    local rec = FYDS.newRecord("1", "alice", "Alice", 0, 0, 0, 0, false)
+    local factions = { alice = "Red", carol = "Red", dave = "Blue" }
+    local same = function(a, b) return factions[a] ~= nil and factions[a] == factions[b] end
+    eq(FYDS.canSee(rec, "alice", FYDS.VISIBILITY_ONLY_ME, same), true, "owner, only me")
+    eq(FYDS.canSee(rec, "carol", FYDS.VISIBILITY_ONLY_ME, same), false, "faction mate, only me")
+    eq(FYDS.canSee(rec, "carol", FYDS.VISIBILITY_FACTION, same), true, "faction mate, faction")
+    eq(FYDS.canSee(rec, "dave", FYDS.VISIBILITY_FACTION, same), false, "other faction, faction")
+    eq(FYDS.canSee(rec, "erin", FYDS.VISIBILITY_FACTION, same), false, "no faction, faction")
+    eq(FYDS.canSee(rec, "dave", FYDS.VISIBILITY_EVERYONE, same), true, "anyone, everyone")
+end)
+
+test("isEmpty", function()
+    eq(FYDS.isEmpty({}), true, "empty")
+    eq(FYDS.isEmpty({ a = 1 }), false, "hash")
+    eq(FYDS.isEmpty({ 1 }), false, "array")
+end)
+
+finish("core")
